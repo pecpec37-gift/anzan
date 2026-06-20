@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>メモリー暗算道場</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  :root{
+    --bg:#0f1419; --panel:#1a2332; --accent:#4fc3f7; --accent2:#ffd54f;
+    --ok:#66bb6a; --ng:#ef5350; --text:#e8eef5; --sub:#9fb3c8;
+  }
+  html,body{ height:100%; }
+  body{
+    font-family:"Hiragino Kaku Gothic ProN","Yu Gothic",sans-serif;
+    background:linear-gradient(160deg,#0f1419,#162033);
+    color:var(--text); display:flex; flex-direction:column;
+    align-items:center; min-height:100vh; padding:16px; overflow-x:hidden;
+  }
+  h1{ font-size:clamp(22px,6vw,34px); margin:8px 0 4px; color:var(--accent);
+      text-shadow:0 0 14px rgba(79,195,247,.4); letter-spacing:2px; }
+  .sub{ color:var(--sub); font-size:13px; margin-bottom:18px; }
+  .wrap{ width:100%; max-width:540px; }
+  .panel{ background:var(--panel); border:1px solid #2a3a52; border-radius:18px;
+    padding:22px; box-shadow:0 8px 30px rgba(0,0,0,.4); }
+  .hidden{ display:none !important; }
+
+  .menu-btn{ display:flex; justify-content:space-between; align-items:center;
+    width:100%; padding:18px 20px; margin-bottom:12px; border:none; border-radius:14px;
+    background:linear-gradient(135deg,#22304a,#1b2740); color:var(--text);
+    font-size:17px; font-weight:bold; cursor:pointer; transition:transform .12s,box-shadow .12s;
+    border-left:5px solid var(--accent); }
+  .menu-btn .meta{ font-size:12px; color:var(--sub); font-weight:normal; }
+  .menu-btn.challenge{ border-left-color:var(--accent2);
+    background:linear-gradient(135deg,#3a2f1a,#2a2410); }
+  @media (hover:hover) and (pointer:fine){ .menu-btn:hover{ transform:translateY(-2px);
+    box-shadow:0 6px 18px rgba(79,195,247,.25); } }
+  .menu-btn:active{ transform:scale(.98); }
+
+  #flash{ display:flex; align-items:center; justify-content:center; }
+  #numCanvas{ background:#0a0e14; border-radius:16px; border:1px solid #2a3a52;
+    width:100%; touch-action:none; }
+
+  .status{ display:flex; justify-content:space-between; font-size:14px;
+    color:var(--sub); margin-bottom:14px; }
+  .status b{ color:var(--accent); }
+
+  .ans-area{ text-align:center; }
+  .ans-area .q{ font-size:16px; color:var(--sub); margin-bottom:14px; }
+  #answer{ width:100%; font-size:34px; text-align:center; padding:14px;
+    border-radius:14px; border:2px solid #2a3a52; background:#0a0e14;
+    color:var(--text); margin-bottom:6px; outline:none; font-weight:bold; }
+  #answer:focus{ border-color:var(--accent); }
+  .timer-bar{ height:8px; background:#22304a; border-radius:4px; overflow:hidden; margin:10px 0 18px; }
+  .timer-fill{ height:100%; background:linear-gradient(90deg,var(--ok),var(--accent2),var(--ng));
+    width:100%; transition:width .1s linear; }
+
+  .btn-row{ display:flex; gap:10px; }
+  .btn{ flex:1; padding:15px; border:none; border-radius:13px; font-size:16px;
+    font-weight:bold; cursor:pointer; transition:transform .1s; }
+  .btn:active{ transform:scale(.97); }
+  .btn-primary{ background:linear-gradient(135deg,var(--accent),#29b6f6); color:#06121d; }
+  .btn-give{ background:#5a4a2a; color:var(--accent2); }
+  .btn-quit{ background:#3a2530; color:#ff8a9b; }
+
+  .feedback{ text-align:center; padding:10px 0; }
+  .feedback .mark{ font-size:60px; font-weight:bold; }
+  .feedback.ok .mark{ color:var(--ok); }
+  .feedback.ng .mark{ color:var(--ng); }
+  .feedback .detail{ font-size:18px; margin-top:8px; }
+  .feedback .detail .correct{ color:var(--ok); font-weight:bold; }
+
+  .result h2{ text-align:center; color:var(--accent2); margin-bottom:6px; font-size:26px; }
+  .result .score{ text-align:center; font-size:54px; font-weight:bold;
+    color:var(--accent); margin:10px 0; text-shadow:0 0 16px rgba(79,195,247,.4); }
+  .result .maxnote{ text-align:center; color:var(--sub); font-size:14px; margin-bottom:16px; }
+  .result .rdetail{ background:#0a0e14; border-radius:12px; padding:14px; margin-bottom:16px;
+    font-size:14px; line-height:1.9; }
+  .result .rdetail .row{ display:flex; justify-content:space-between; }
+
+  .name-box{ display:flex; gap:8px; margin-bottom:14px; }
+  .name-box input{ flex:1; padding:12px; border-radius:10px; border:1px solid #2a3a52;
+    background:#0a0e14; color:var(--text); font-size:15px; outline:none; }
+  .name-box input:focus{ border-color:var(--accent); }
+
+  .rank{ background:#0a0e14; border-radius:12px; padding:12px; margin-top:14px; }
+  .rank h3{ font-size:15px; color:var(--accent2); margin-bottom:8px; text-align:center; }
+  .rank-tabs{ display:flex; gap:6px; margin-bottom:10px; }
+  .rank-tabs button{ flex:1; padding:7px; font-size:12px; border:none; border-radius:8px;
+    background:#1a2332; color:var(--sub); cursor:pointer; }
+  .rank-tabs button.active{ background:var(--accent); color:#06121d; font-weight:bold; }
+  .rank ol{ list-style:none; counter-reset:r; }
+  .rank li{ counter-increment:r; display:flex; justify-content:space-between;
+    padding:6px 4px; font-size:14px; border-bottom:1px solid #1a2332; }
+  .rank li::before{ content:counter(r)"."; color:var(--accent2); width:26px; }
+  .rank li .nm{ flex:1; }
+  .rank .empty{ color:var(--sub); text-align:center; font-size:13px; padding:8px; }
+
+  .portal-btn{ display:block; width:100%; max-width:540px; margin:18px auto 8px;
+    padding:14px; text-align:center; background:#22304a; color:var(--sub);
+    border-radius:12px; text-decoration:none; font-size:14px; border:1px solid #2a3a52; }
+  @media (hover:hover) and (pointer:fine){ .portal-btn:hover{ color:var(--text); border-color:var(--accent); } }
+
+  .hanamaru{ text-align:center; margin:14px 0; }
+  .hanamaru svg{ width:140px; height:140px; filter:drop-shadow(0 0 12px rgba(255,138,178,.5));
+    animation:pop .5s cubic-bezier(.2,1.4,.5,1); }
+  @keyframes pop{ 0%{transform:scale(0) rotate(-30deg);}100%{transform:scale(1) rotate(0);} }
+  .hanamaru .msg{ color:#ff8ab2; font-weight:bold; margin-top:4px; }
+
+  .countdown{ text-align:center; font-size:90px; font-weight:bold; color:var(--accent2);
+    text-shadow:0 0 20px rgba(255,213,79,.5); }
+</style>
+</head>
+<body>
+<h1>メモリー暗算道場</h1>
+<div class="sub">フラッシュ暗算 — 表示される数字を覚えて合計せよ</div>
+
+<div class="wrap">
+
+  <!-- MENU -->
+  <div id="menuScreen" class="panel">
+    <button class="menu-btn" data-mode="d1">
+      <span>1桁の数字<div class="meta">5問 / 表示0.7秒 / 最高100点</div></span><span>▶</span>
+    </button>
+    <button class="menu-btn" data-mode="d2">
+      <span>2桁の数字<div class="meta">5問 / 表示0.5秒 / 最高200点</div></span><span>▶</span>
+    </button>
+    <button class="menu-btn" data-mode="d3">
+      <span>3桁の数字<div class="meta">5問 / 表示0.3秒 / 最高300点</div></span><span>▶</span>
+    </button>
+    <button class="menu-btn challenge" data-mode="ch">
+      <span>チャレンジ問題<div class="meta">3桁 / 5問 / 表示0.1秒 / 最高400点</div></span><span>🔥</span>
+    </button>
+  </div>
+
+  <!-- GAME -->
+  <div id="gameScreen" class="panel hidden">
+    <div class="status">
+      <span>問題 <b id="qNum">1</b>/5</span>
+      <span id="modeLabel"></span>
+      <span>スコア <b id="curScore">0</b></span>
+    </div>
+
+    <div id="countdownView" class="countdown hidden"></div>
+
+    <div id="flash" class="hidden">
+      <canvas id="numCanvas"></canvas>
+    </div>
+
+    <div id="answerView" class="ans-area hidden">
+      <div class="q">合計はいくつ？</div>
+      <input id="answer" type="number" inputmode="numeric" placeholder="?" autocomplete="off">
+      <div class="timer-bar"><div id="timerFill" class="timer-fill"></div></div>
+      <div class="btn-row">
+        <button class="btn btn-primary" id="submitBtn">回答する！</button>
+      </div>
+      <div class="btn-row" style="margin-top:10px;">
+        <button class="btn btn-give" id="giveBtn">ギブアップ</button>
+        <button class="btn btn-quit" id="quitBtn">やめる</button>
+      </div>
+    </div>
+
+    <div id="feedbackView" class="feedback hidden">
+      <div class="mark"></div>
+      <div class="detail"></div>
+    </div>
+  </div>
+
+  <!-- RESULT -->
+  <div id="resultScreen" class="panel result hidden">
+    <h2>結果発表</h2>
+    <div class="score" id="finalScore">0</div>
+    <div class="maxnote" id="maxNote"></div>
+    <div id="hanamaruWrap" class="hanamaru hidden"></div>
+    <div class="rdetail" id="resultDetail"></div>
+
+    <div class="name-box">
+      <input id="playerName" type="text" maxlength="12" placeholder="名前を入力">
+      <button class="btn btn-primary" id="saveBtn" style="flex:0 0 100px;">登録</button>
+    </div>
+
+    <div class="btn-row">
+      <button class="btn btn-primary" id="retryBtn">もう一度</button>
+      <button class="btn btn-quit" id="backMenuBtn">メニューへ</button>
+    </div>
+
+    <div class="rank">
+      <h3 id="rankTitle">ランキング</h3>
+      <ol id="rankList"></ol>
+    </div>
+  </div>
+
+</div>
+
+<a class="portal-btn" href="https://pecpec37-gift.github.io/portal/">🏠 ポータルサイトに戻る</a>
+
+<!-- 花丸スタンプ送信用（任意・存在すれば連携） -->
+<script src="https://pecpec37-gift.github.io/portal/stamp.js"></script>
+<script>
+const STAMP_GAME_ID = "memory_anzan";
+
+const MODES = {
+  d1: { name:"1桁の数字", digits:1, flash:700, base:10,  max:100, label:"1桁" },
+  d2: { name:"2桁の数字", digits:2, flash:500, base:20,  max:200, label:"2桁" },
+  d3: { name:"3桁の数字", digits:3, flash:300, base:30,  max:300, label:"3桁" },
+  ch: { name:"チャレンジ", digits:3, flash:100, base:40,  max:400, label:"チャレンジ" },
+};
+const QUESTIONS = 5;
+const COUNTS = [2,3,5,7,8];      // 各問の数字の個数
+const ANSWER_TIME = 12000;        // 制限時間(ms)
+
+let mode, modeKey, qIndex, score, streak, correctCount, currentSum;
+let answerTimer, timerRAF, flashTimer;
+
+const $ = id => document.getElementById(id);
+const screens = {
+  menu: $("menuScreen"), game: $("gameScreen"), result: $("resultScreen")
+};
+function show(name){ for(const k in screens) screens[k].classList.toggle("hidden", k!==name); }
+
+/* ---------- canvas ---------- */
+const canvas = $("numCanvas");
+const ctx = canvas.getContext("2d");
+function sizeCanvas(){
+  const w = Math.min(canvas.parentElement.clientWidth, 500);
+  const h = Math.round(w * 0.55);
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = w*dpr; canvas.height = h*dpr;
+  canvas.style.width = w+"px"; canvas.style.height = h+"px";
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  return {w,h};
+}
+window.addEventListener("resize", ()=>{ if(!screens.game.classList.contains("hidden")) sizeCanvas(); });
+
+function drawNumber(n){
+  const {w,h} = sizeCanvas();
+  ctx.clearRect(0,0,w,h);
+  ctx.fillStyle = "#0a0e14"; ctx.fillRect(0,0,w,h);
+  const fs = Math.min(h*0.62, w*0.4);
+  ctx.font = `bold ${fs}px "Yu Gothic",sans-serif`;
+  ctx.textAlign="center"; ctx.textBaseline="middle";
+  ctx.shadowColor="rgba(79,195,247,.6)"; ctx.shadowBlur=20;
+  ctx.fillStyle = "#4fc3f7";
+  ctx.fillText(n, w/2, h/2);
+  ctx.shadowBlur=0;
+}
+function clearCanvas(){
+  const {w,h}=sizeCanvas();
+  ctx.fillStyle="#0a0e14"; ctx.fillRect(0,0,w,h);
+}
+
+/* ---------- flow ---------- */
+document.querySelectorAll(".menu-btn").forEach(b=>{
+  b.addEventListener("click",()=>startGame(b.dataset.mode));
+});
+
+function startGame(key){
+  modeKey = key; mode = MODES[key];
+  qIndex = 0; score = 0; streak = 0; correctCount = 0;
+  $("modeLabel").textContent = mode.label;
+  $("curScore").textContent = 0;
+  show("game");
+  sizeCanvas();
+  nextQuestion();
+}
+
+function nextQuestion(){
+  $("qNum").textContent = qIndex+1;
+  $("feedbackView").classList.add("hidden");
+  $("answerView").classList.add("hidden");
+  $("flash").classList.add("hidden");
+
+  // generate
+  const count = COUNTS[qIndex];
+  const lo = Math.pow(10, mode.digits-1);
+  const hi = Math.pow(10, mode.digits)-1;
+  const minV = mode.digits===1 ? 1 : lo;
+  const nums = [];
+  for(let i=0;i<count;i++) nums.push(Math.floor(Math.random()*(hi-minV+1))+minV);
+  currentSum = nums.reduce((a,b)=>a+b,0);
+
+  // countdown 3,2,1
+  const cv = $("countdownView");
+  cv.classList.remove("hidden");
+  let c = 3;
+  cv.textContent = c;
+  const cd = setInterval(()=>{
+    c--;
+    if(c>0){ cv.textContent = c; }
+    else { clearInterval(cd); cv.classList.add("hidden"); flashSequence(nums); }
+  }, 600);
+}
+
+function flashSequence(nums){
+  $("flash").classList.remove("hidden");
+  let i = 0;
+  const showOne = ()=>{
+    if(i >= nums.length){ clearCanvas(); setTimeout(askAnswer, 200); return; }
+    drawNumber(nums[i]);
+    flashTimer = setTimeout(()=>{
+      clearCanvas();
+      i++;
+      flashTimer = setTimeout(showOne, 120); // 暗転インターバル
+    }, mode.flash);
+  };
+  showOne();
+}
+
+function askAnswer(){
+  $("flash").classList.add("hidden");
+  const av = $("answerView");
+  av.classList.remove("hidden");
+  const inp = $("answer");
+  inp.value = ""; inp.focus();
+
+  // timer bar
+  const fill = $("timerFill");
+  fill.style.width = "100%";
+  const start = performance.now();
+  const tick = ()=>{
+    const el = performance.now()-start;
+    const ratio = Math.max(0, 1 - el/ANSWER_TIME);
+    fill.style.width = (ratio*100)+"%";
+    if(ratio>0) timerRAF = requestAnimationFrame(tick);
+  };
+  timerRAF = requestAnimationFrame(tick);
+  answerTimer = setTimeout(()=>judge(null,true), ANSWER_TIME);
+}
+
+function clearTimers(){
+  clearTimeout(answerTimer); cancelAnimationFrame(timerRAF);
+}
+
+$("submitBtn").addEventListener("click", ()=>{
+  const v = $("answer").value.trim();
+  if(v==="") return;
+  judge(parseInt(v,10), false);
+});
+$("answer").addEventListener("keydown", e=>{
+  if(e.key==="Enter"){ const v=$("answer").value.trim(); if(v!=="") judge(parseInt(v,10),false); }
+});
+$("giveBtn").addEventListener("click", ()=>judge(null,false,true));
+$("quitBtn").addEventListener("click", ()=>{ clearTimers(); show("menu"); });
+
+function judge(value, timeout, giveup){
+  clearTimers();
+  $("answerView").classList.add("hidden");
+  const correct = !timeout && !giveup && value===currentSum;
+
+  if(correct){
+    correctCount++;
+    streak++;
+    score += mode.base + (streak-1)*mode.base; // 連続正解＋base加算
+  } else {
+    streak = 0;
+  }
+  $("curScore").textContent = score;
+
+  const fb = $("feedbackView");
+  fb.classList.remove("hidden","ok","ng");
+  fb.classList.add(correct ? "ok":"ng");
+  fb.querySelector(".mark").textContent = correct ? "○" : "×";
+  let detail;
+  if(correct) detail = `正解！ +${mode.base + (streak-1)*mode.base}点`;
+  else if(giveup) detail = `正解は <span class="correct">${currentSum}</span>`;
+  else if(timeout) detail = `時間切れ… 正解は <span class="correct">${currentSum}</span>`;
+  else detail = `不正解… 正解は <span class="correct">${currentSum}</span>`;
+  fb.querySelector(".detail").innerHTML = detail;
+
+  setTimeout(()=>{
+    qIndex++;
+    if(qIndex>=QUESTIONS) finish();
+    else nextQuestion();
+  }, 1400);
+}
+
+function finish(){
+  // 全問正解ボーナス
+  const allCorrect = correctCount===QUESTIONS;
+  if(allCorrect) score += mode.base;
+  $("curScore").textContent = score;
+
+  show("result");
+  $("finalScore").textContent = score;
+  $("maxNote").textContent = `${mode.name}問題　最高 ${mode.max}点`;
+  $("resultDetail").innerHTML =
+    `<div class="row"><span>正解数</span><span>${correctCount} / ${QUESTIONS}</span></div>`+
+    `<div class="row"><span>全問正解ボーナス</span><span>${allCorrect?`+${mode.base}点`:"なし"}</span></div>`+
+    `<div class="row"><span>獲得スコア</span><span>${score}点</span></div>`;
+
+  const hm = $("hanamaruWrap");
+  if(allCorrect){
+    hm.classList.remove("hidden");
+    hm.innerHTML = hanamaruSVG() + `<div class="msg">🌸 花丸スタンプ獲得！ 🌸</div>`;
+    sendStamp();
+  } else {
+    hm.classList.add("hidden");
+  }
+
+  $("playerName").value = (window.TomyStamp && TomyStamp.getPlayer && TomyStamp.getPlayer()) || loadName();
+  renderRank();
+}
+
+function hanamaruSVG(){
+  return `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+  <g transform="translate(50,50)">
+   ${[0,1,2,3,4].map(i=>{
+     const a = i*72*Math.PI/180;
+     return `<ellipse cx="${Math.cos(a)*22}" cy="${Math.sin(a)*22}" rx="16" ry="22"
+       transform="rotate(${i*72} ${Math.cos(a)*22} ${Math.sin(a)*22})"
+       fill="#ff8ab2" opacity="0.92"/>`;
+   }).join("")}
+   <circle r="14" fill="#ffd54f"/>
+  </g>
+  <text x="50" y="56" text-anchor="middle" font-size="11" fill="#fff" font-weight="bold">よく</text>
+  <text x="50" y="68" text-anchor="middle" font-size="9" fill="#fff" font-weight="bold">できました</text>
+ </svg>`;
+}
+
+function sendStamp(){
+  try{
+    if(window.TomyStamp && TomyStamp.send){
+      TomyStamp.send(STAMP_GAME_ID, mode.name, correctCount);
+    }
+  }catch(e){}
+}
+
+/* ---------- ranking (local) ---------- */
+function rankKey(){ return "anzan_rank_"+modeKey; }
+function loadRank(){ try{ return JSON.parse(localStorage.getItem(rankKey()))||[]; }catch(e){ return []; } }
+function saveName(n){ localStorage.setItem("anzan_name", n); }
+function loadName(){ return localStorage.getItem("anzan_name")||""; }
+
+$("saveBtn").addEventListener("click", ()=>{
+  const nm = $("playerName").value.trim() || "ゲスト";
+  saveName(nm);
+  if(window.TomyStamp && TomyStamp.setPlayer) try{ TomyStamp.setPlayer(nm); }catch(e){}
+  const list = loadRank();
+  list.push({ name:nm, score:score, date:new Date().toISOString().slice(0,10) });
+  list.sort((a,b)=>b.score-a.score);
+  localStorage.setItem(rankKey(), JSON.stringify(list.slice(0,50)));
+  $("saveBtn").textContent = "登録済";
+  $("saveBtn").disabled = true;
+  renderRank();
+});
+
+function renderRank(){
+  $("rankTitle").textContent = `${mode.name} ランキング`;
+  const list = loadRank();
+  const ol = $("rankList");
+  if(!list.length){ ol.innerHTML = `<div class="empty">まだ記録がありません</div>`; return; }
+  ol.innerHTML = list.slice(0,10).map(r=>
+    `<li><span class="nm">${escapeHtml(r.name)}</span><span>${r.score}点</span></li>`
+  ).join("");
+}
+function escapeHtml(s){ return s.replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+
+$("retryBtn").addEventListener("click", ()=>{
+  $("saveBtn").textContent="登録"; $("saveBtn").disabled=false;
+  startGame(modeKey);
+});
+$("backMenuBtn").addEventListener("click", ()=>{
+  $("saveBtn").textContent="登録"; $("saveBtn").disabled=false;
+  show("menu");
+});
+</script>
+</body>
+</html>
