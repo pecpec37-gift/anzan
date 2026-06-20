@@ -85,6 +85,7 @@
   .result .rdetail .row{ display:flex; justify-content:space-between; }
 
   .name-box{ display:flex; gap:8px; margin-bottom:14px; }
+  .name-hint{ font-size:13px; color:var(--accent2); text-align:center; margin-bottom:8px; }
   .name-box input{ flex:1; padding:12px; border-radius:10px; border:1px solid #2a3a52;
     background:#0a0e14; color:var(--text); font-size:15px; outline:none; }
   .name-box input:focus{ border-color:var(--accent); }
@@ -192,8 +193,9 @@
     <div id="hanamaruWrap" class="hanamaru hidden"></div>
     <div class="rdetail" id="resultDetail"></div>
 
+    <div class="name-hint">📝 名前を入れて「登録」するとランキングに表示されます</div>
     <div class="name-box">
-      <input id="playerName" type="text" maxlength="12" placeholder="名前を入力">
+      <input id="playerName" type="text" maxlength="12" placeholder="プレーヤー名">
       <button class="btn btn-primary" id="saveBtn" style="flex:0 0 100px;">登録</button>
     </div>
 
@@ -233,6 +235,7 @@ const ANSWER_TIME = 12000;        // 制限時間(ms)
 
 let mode, modeKey, qIndex, score, streak, correctCount, currentSum;
 let answerTimer, timerRAF, flashTimer;
+let lastEntryTs = null;   // ゲーム終了時に自動保存した記録のタイムスタンプ
 
 const $ = id => document.getElementById(id);
 const screens = {
@@ -419,8 +422,19 @@ function finish(){
     hm.classList.add("hidden");
   }
 
-  $("playerName").value = (window.TomyStamp && TomyStamp.getPlayer && TomyStamp.getPlayer()) || loadName();
+  // 名前のプレフィル（前回名 or 連携プレーヤー名）
+  const nm0 = (window.TomyStamp && TomyStamp.getPlayer && TomyStamp.getPlayer()) || loadName() || "ゲスト";
+  $("playerName").value = (nm0==="ゲスト") ? "" : nm0;
+
+  // ★ ゲーム終了時に自動でランキングへ記録（メニューの最高記録に即反映）
+  lastEntryTs = Date.now();
+  const list = loadRank();
+  list.push({ name:nm0, score:score, date:new Date().toISOString().slice(0,10), ts:lastEntryTs });
+  sortRank(list);
+  localStorage.setItem(rankKey(), JSON.stringify(list.slice(0,50)));
+
   renderRank();
+  renderMenuBest();
 }
 
 function hanamaruSVG(){
@@ -461,7 +475,10 @@ $("saveBtn").addEventListener("click", ()=>{
   saveName(nm);
   if(window.TomyStamp && TomyStamp.setPlayer) try{ TomyStamp.setPlayer(nm); }catch(e){}
   const list = loadRank();
-  list.push({ name:nm, score:score, date:new Date().toISOString().slice(0,10), ts:Date.now() });
+  // ゲーム終了時に自動保存した記録があれば、その名前を上書き更新（重複登録しない）
+  const e = lastEntryTs ? list.find(x=>x.ts===lastEntryTs) : null;
+  if(e){ e.name = nm; }
+  else { list.push({ name:nm, score:score, date:new Date().toISOString().slice(0,10), ts:(lastEntryTs||Date.now()) }); }
   sortRank(list);
   localStorage.setItem(rankKey(), JSON.stringify(list.slice(0,50)));
   $("saveBtn").textContent = "登録済";
