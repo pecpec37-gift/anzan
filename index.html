@@ -236,6 +236,8 @@ const ANSWER_TIME = 12000;        // 制限時間(ms)
 let mode, modeKey, qIndex, score, streak, correctCount, currentSum;
 let answerTimer, timerRAF, flashTimer;
 let lastEntryTs = null;   // ゲーム終了時に自動保存した記録のタイムスタンプ
+let lastAllCorrect = false;  // 直近ゲームが全問正解（花丸）だったか
+let stampSentName = null;    // 花丸を送信済みの名前（重複送信防止）
 
 const $ = id => document.getElementById(id);
 const screens = {
@@ -282,6 +284,7 @@ document.querySelectorAll(".menu-btn").forEach(b=>{
 function startGame(key){
   modeKey = key; mode = MODES[key];
   qIndex = 0; score = 0; streak = 0; correctCount = 0;
+  lastAllCorrect = false; stampSentName = null;
   $("modeLabel").textContent = mode.label;
   $("curScore").textContent = 0;
   show("game");
@@ -417,10 +420,10 @@ function finish(){
   if(allCorrect){
     hm.classList.remove("hidden");
     hm.innerHTML = hanamaruSVG() + `<div class="msg">🌸 花丸スタンプ獲得！ 🌸</div>`;
-    sendStamp();
   } else {
     hm.classList.add("hidden");
   }
+  lastAllCorrect = allCorrect;
 
   // 名前のプレフィル（前回名 or 連携プレーヤー名）
   const nm0 = (window.TomyStamp && TomyStamp.getPlayer && TomyStamp.getPlayer()) || loadName() || "ゲスト";
@@ -432,6 +435,9 @@ function finish(){
   list.push({ name:nm0, score:score, date:new Date().toISOString().slice(0,10), ts:lastEntryTs });
   sortRank(list);
   localStorage.setItem(rankKey(), JSON.stringify(list.slice(0,50)));
+
+  // ★ 花丸ならGoogleシート（花丸ランキング）へ送信。名前を「登録」で変更した場合は再送される。
+  if(allCorrect) sendStamp(nm0);
 
   renderRank();
   renderMenuBest();
@@ -453,11 +459,16 @@ function hanamaruSVG(){
  </svg>`;
 }
 
-function sendStamp(){
+// 花丸をGoogleシート（花丸ランキング）へ送信
+// スタンプ側の花丸しきい値は「正解数≧9」のため、満点(花丸)時は10を送って確実に花丸として記録する
+function sendStamp(name){
+  if(!lastAllCorrect) return;
+  if(!(window.TomyStamp && TomyStamp.send)) return;
+  if(stampSentName===name) return;   // 同じ名前で送信済みなら重複送信しない
   try{
-    if(window.TomyStamp && TomyStamp.send){
-      TomyStamp.send(STAMP_GAME_ID, mode.name, correctCount);
-    }
+    if(TomyStamp.setPlayer) TomyStamp.setPlayer(name);
+    TomyStamp.send(STAMP_GAME_ID, mode.name, 10);
+    stampSentName = name;
   }catch(e){}
 }
 
@@ -481,6 +492,8 @@ $("saveBtn").addEventListener("click", ()=>{
   else { list.push({ name:nm, score:score, date:new Date().toISOString().slice(0,10), ts:(lastEntryTs||Date.now()) }); }
   sortRank(list);
   localStorage.setItem(rankKey(), JSON.stringify(list.slice(0,50)));
+  // 花丸ゲームなら、確定した名前でGoogleシートへ（自動送信時と名前が異なれば再送）
+  if(lastAllCorrect) sendStamp(nm);
   $("saveBtn").textContent = "登録済";
   $("saveBtn").disabled = true;
   renderRank();
