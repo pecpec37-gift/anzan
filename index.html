@@ -31,6 +31,12 @@
     font-size:17px; font-weight:bold; cursor:pointer; transition:transform .12s,box-shadow .12s;
     border-left:5px solid var(--accent); }
   .menu-btn .meta{ font-size:12px; color:var(--sub); font-weight:normal; }
+  .menu-btn .best{ font-size:12px; font-weight:normal; margin-top:7px;
+    padding-top:7px; border-top:1px dashed #2a3a52; color:var(--accent2); }
+  .menu-btn .best.none{ color:var(--sub); }
+  .menu-btn .best b{ color:var(--accent); font-size:14px; }
+  .menu-btn .best .bd{ color:var(--sub); font-size:11px; }
+  .menu-btn .best .nm{ font-weight:bold; }
   .menu-btn.challenge{ border-left-color:var(--accent2);
     background:linear-gradient(135deg,#3a2f1a,#2a2410); }
   @media (hover:hover) and (pointer:fine){ .menu-btn:hover{ transform:translateY(-2px);
@@ -120,28 +126,28 @@
   <!-- MENU -->
   <div id="menuScreen" class="panel">
     <button class="menu-btn" data-mode="d1_07">
-      <span>1桁の数字<div class="meta">5問 / 表示0.7秒 / 最高100点</div></span><span>▶</span>
+      <span>1桁の数字<div class="meta">5問 / 表示0.7秒 / 最高100点</div><div class="best" data-best="d1_07"></div></span><span>▶</span>
     </button>
     <button class="menu-btn" data-mode="d1_05">
-      <span>1桁の数字<div class="meta">5問 / 表示0.5秒 / 最高100点</div></span><span>▶</span>
+      <span>1桁の数字<div class="meta">5問 / 表示0.5秒 / 最高100点</div><div class="best" data-best="d1_05"></div></span><span>▶</span>
     </button>
     <button class="menu-btn" data-mode="d1_03">
-      <span>1桁の数字<div class="meta">5問 / 表示0.3秒 / 最高100点</div></span><span>▶</span>
+      <span>1桁の数字<div class="meta">5問 / 表示0.3秒 / 最高100点</div><div class="best" data-best="d1_03"></div></span><span>▶</span>
     </button>
     <button class="menu-btn" data-mode="d2_07">
-      <span>2桁の数字<div class="meta">5問 / 表示0.7秒 / 最高200点</div></span><span>▶</span>
+      <span>2桁の数字<div class="meta">5問 / 表示0.7秒 / 最高200点</div><div class="best" data-best="d2_07"></div></span><span>▶</span>
     </button>
     <button class="menu-btn" data-mode="d2_05">
-      <span>2桁の数字<div class="meta">5問 / 表示0.5秒 / 最高200点</div></span><span>▶</span>
+      <span>2桁の数字<div class="meta">5問 / 表示0.5秒 / 最高200点</div><div class="best" data-best="d2_05"></div></span><span>▶</span>
     </button>
     <button class="menu-btn" data-mode="d2_03">
-      <span>2桁の数字<div class="meta">5問 / 表示0.3秒 / 最高200点</div></span><span>▶</span>
+      <span>2桁の数字<div class="meta">5問 / 表示0.3秒 / 最高200点</div><div class="best" data-best="d2_03"></div></span><span>▶</span>
     </button>
     <button class="menu-btn" data-mode="d3_07">
-      <span>3桁の数字<div class="meta">5問 / 表示0.7秒 / 最高300点</div></span><span>▶</span>
+      <span>3桁の数字<div class="meta">5問 / 表示0.7秒 / 最高300点</div><div class="best" data-best="d3_07"></div></span><span>▶</span>
     </button>
     <button class="menu-btn challenge" data-mode="ch_05">
-      <span>チャレンジ問題<div class="meta">3桁 / 5問 / 表示0.5秒 / 最高400点</div></span><span>🔥</span>
+      <span>チャレンジ問題<div class="meta">3桁 / 5問 / 表示0.5秒 / 最高400点</div><div class="best" data-best="ch_05"></div></span><span>🔥</span>
     </button>
   </div>
 
@@ -232,7 +238,7 @@ const $ = id => document.getElementById(id);
 const screens = {
   menu: $("menuScreen"), game: $("gameScreen"), result: $("resultScreen")
 };
-function show(name){ for(const k in screens) screens[k].classList.toggle("hidden", k!==name); }
+function show(name){ for(const k in screens) screens[k].classList.toggle("hidden", k!==name); if(name==="menu") renderMenuBest(); }
 
 /* ---------- canvas ---------- */
 const canvas = $("numCanvas");
@@ -442,22 +448,26 @@ function sendStamp(){
 }
 
 /* ---------- ranking (local) ---------- */
-function rankKey(){ return "anzan_rank_"+modeKey; }
-function loadRank(){ try{ return JSON.parse(localStorage.getItem(rankKey()))||[]; }catch(e){ return []; } }
+function rankKey(key){ return "anzan_rank_"+(key||modeKey); }
+function loadRank(key){ try{ return JSON.parse(localStorage.getItem(rankKey(key)))||[]; }catch(e){ return []; } }
 function saveName(n){ localStorage.setItem("anzan_name", n); }
 function loadName(){ return localStorage.getItem("anzan_name")||""; }
+
+// スコア降順 → 同点は新しい記録(ts)を上位に（＝同点は上書きで最新が最高記録に）
+function sortRank(list){ list.sort((a,b)=> b.score-a.score || (b.ts||0)-(a.ts||0) ); return list; }
 
 $("saveBtn").addEventListener("click", ()=>{
   const nm = $("playerName").value.trim() || "ゲスト";
   saveName(nm);
   if(window.TomyStamp && TomyStamp.setPlayer) try{ TomyStamp.setPlayer(nm); }catch(e){}
   const list = loadRank();
-  list.push({ name:nm, score:score, date:new Date().toISOString().slice(0,10) });
-  list.sort((a,b)=>b.score-a.score);
+  list.push({ name:nm, score:score, date:new Date().toISOString().slice(0,10), ts:Date.now() });
+  sortRank(list);
   localStorage.setItem(rankKey(), JSON.stringify(list.slice(0,50)));
   $("saveBtn").textContent = "登録済";
   $("saveBtn").disabled = true;
   renderRank();
+  renderMenuBest();
 });
 
 function renderRank(){
@@ -471,6 +481,23 @@ function renderRank(){
 }
 function escapeHtml(s){ return s.replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
 
+// 各メニューに「最高スコア・名前・日付」を表示（同点は最新が上位＝上書き）
+function renderMenuBest(){
+  for(const key in MODES){
+    const el = document.querySelector(`.best[data-best="${key}"]`);
+    if(!el) continue;
+    const list = sortRank(loadRank(key));
+    if(list.length){
+      const b = list[0];
+      el.classList.remove("none");
+      el.innerHTML = `🏆 最高 <b>${b.score}</b>点　<span class="nm">${escapeHtml(b.name)}</span>　<span class="bd">${b.date||""}</span>`;
+    } else {
+      el.classList.add("none");
+      el.textContent = "🏆 まだ記録なし";
+    }
+  }
+}
+
 $("retryBtn").addEventListener("click", ()=>{
   $("saveBtn").textContent="登録"; $("saveBtn").disabled=false;
   startGame(modeKey);
@@ -479,6 +506,10 @@ $("backMenuBtn").addEventListener("click", ()=>{
   $("saveBtn").textContent="登録"; $("saveBtn").disabled=false;
   show("menu");
 });
+
+// 初期表示：メニューの最高記録を描画
+renderMenuBest();
+
 </script>
 </body>
 </html>
